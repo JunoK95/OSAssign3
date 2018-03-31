@@ -99,9 +99,9 @@ sleepy_read(struct file *filp, char __user *buf, size_t count,
 
   /* YOUR CODE HERE */
     minor = (int)iminor(filp->f_path.dentry->d_inode);
-    dev->flag = 1;
-    wake_up_interruptible(&dev->wq);
+    dev->flag = 0;
     printk("SLEEPY_READ DEVICE (%d): Process is waking everyone up. \n", minor);
+    wake_up_interruptible(&dev->wq);
   /* END YOUR CODE */
 
   mutex_unlock(&dev->sleepy_mutex);
@@ -116,6 +116,8 @@ sleepy_write(struct file *filp, const char __user *buf, size_t count,
   ssize_t retval = 0;
   int minor;
   unsigned long remaining_seconds;
+  int timeout_ms = *((int*)buf);
+  int timeout_jiffies = msecs_to_jiffies(timeout_ms);  
 
   if (mutex_lock_killable(&dev->sleepy_mutex))
     return -EINTR;
@@ -123,11 +125,11 @@ sleepy_write(struct file *filp, const char __user *buf, size_t count,
   /* YOUR CODE HERE */
 
   minor = (int)iminor(filp->f_path.dentry->d_inode);
-  dev->flag = 0;
-  mutex_unlock(&dev->sleepy_mutex);
-  wait_event_interruptible(dev->wq, dev->flag != 0);
-
+  remaining_seconds = wait_event_interruptible_timeout(dev->wq, dev->flag != 0, timeout_jiffies);
+  dev->flag = 1;
   printk("SLEEPY_WRITE DEVICE (%d): remaining = %zd \n", minor, remaining_seconds);
+
+  mutex_unlock(&dev->sleepy_mutex);
   /* END YOUR CODE */
   return retval;
 }
