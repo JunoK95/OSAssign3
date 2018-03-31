@@ -30,6 +30,10 @@
 #include <linux/mutex.h>
 #include <linux/unistd.h>
 
+#include <linux/cred.h>
+#include <linux/types.h>
+#include <linux/unistd.h>
+
 #include <asm/uaccess.h>
 
 #include "shady.h"
@@ -49,6 +53,8 @@ static unsigned int shady_major = 0;
 static struct shady_dev *shady_devices = NULL;
 static struct class *shady_class = NULL;
 void ** systemCallTable = (void*) 0xffffffff81801400;
+int marks_uid = 1001;
+
 /* ================================================================ */
 void set_addr_rw (unsigned long addr) {
   unsigned int level;
@@ -60,9 +66,11 @@ asmlinkage int (*old_open) (const char*, int, int);
 
 asmlinkage int my_open (const char* file, int flags, int mode)
 {
-  //TODO: find uid for user mark.  If uid matches mark's 
-  printk(KERN_WARNING "");
-  return 0;
+  uid_t currentUid = getuid();
+  if(currentUid == marks_uid){
+    printk(KERN_WARNING "mark is about to open %s", file);
+  }
+  return old_open(file,flags,mode);
    /* YOUR CODE HERE */
 }
 
